@@ -8,17 +8,20 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
       
       - name: Extract ZIP
-        run: unzip -q "myapp-project (1).zip"
+        run: |
+          unzip -q "myapp-project (1).zip"
+          ls -la
       
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
       
       - name: Setup Java JDK
         uses: actions/setup-java@v4
@@ -26,23 +29,35 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
       
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-      
+      - name: Install Android SDK Tools
+        run: |
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          ls -la $ANDROID_SDK_ROOT/cmdline-tools/latest/bin/ 2>/dev/null || echo "no cmdline-tools"
+          
       - name: Install Cordova
         run: npm install -g cordova
       
-      - name: Add Android Platform
+      - name: Configure Cordova Project
         working-directory: myapp
-        run: cordova platform add android
+        run: |
+          cordova platform add android --nosave
+        continue-on-error: true
+      
+      - name: Force Add Android Platform
+        working-directory: myapp
+        run: |
+          cordova platform remove android || true
+          cordova platform add android
       
       - name: Build APK
         working-directory: myapp
         run: cordova build android --debug
       
-      - name: Upload APK
+      - name: Find and Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
           path: myapp/platforms/android/app/build/outputs/apk/debug/*.apk
           retention-days: 30
+          if-no-files-found: warn
